@@ -1,3 +1,8 @@
+/* ---------- Atomic Vibrations in 1-D Lattices -----------
+Written by Jacksen Narvaez, 2023.
+Based on the original code from F. Dominguez, (2000)
+---------------------------------------------------------*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -5,7 +10,7 @@
 #define N       1000    // Number of atoms in the chain
 #define NP      100     // Number of averages
 #define NL      1000    // number of frequencies
-#define NM      4       // Types of atoms
+#define NM      2       // Types of atoms
 
 #define RAN() ((double)rand()/(double)(RAND_MAX))
 
@@ -51,22 +56,24 @@ int ratio_n(double const alpha[], double const lambda, int const n) {
 }
 
 int main() {
-    double  mass[NM]     = {1., 2., 3., 4.};    // Mass of A atoms
+    double  mass[NM]     = {1., 2.};    // Mass of A atoms
     double  lmin         = 0.;          // Minimum frequency 
     double  lmax         = 5.;          // Maximun frequency 
-    char    filename[]   = "DatosNL.txt";
+    char    filename[]   = "./results/Datos2R.txt";
     int     rd           = 1;           // Random or Periodic chain
     double  alpha[N];                   // Reduced masses
     double  idos[NL];                   // Accumulative density modes
 
+    srand(1234);
+
     int ii, jj;
-    double lambda, dlambda=(double)(lmax-lmin)/NL;
+    double lambda, dlambda = (double)(lmax-lmin)/NL;
     FILE *out;
     out = fopen(filename, "w");
     for(jj=0; jj<NL; jj++) {
         idos[jj] = 0.;
     }
-    if (rd==0) {
+    if (rd == 0) {
     	    init_mass_per(alpha, N, mass, NM);
         }
     for(ii=0; ii<NP; ii++) { 
