@@ -1,90 +1,86 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <time.h>
 
 #define N       1000    // Number of atoms in the chain
-#define MA      1.0     // Mass of A atoms
-#define MB      1.3     // Mass of B atoms
-#define C       0.5     // concentration of B atoms
 #define NP      100     // Number of averages
 #define NL      1000    // number of frequencies
-#define LMIN    0.0     // Minimum frequency 
-#define LMAX    5.0     // Maximun frequency 
-#define FILENAME "DatosNL.txt"
+#define NM      4       // Types of atoms
 
 #define RAN() ((double)rand()/(double)(RAND_MAX))
 
-double alphard[N];      // Reduced masses
-double idosrd[NL];      // Accumulative density modes
+int concent(int const nm) {
+    double dx = 1./(double) nm;
+    double rd = RAN();
+    return (int) floor(rd/dx);
+}
 
-double alphaic[N];      // Reduced masses
-double idosic[NL];      // Accumulative density modes
-
-void massrand (void){
-    int i;
-    for (i = 0; i<N; i++){
-        if(RAN()>= C) alphard[i] = 1.;
-        else alphard[i] = MB/MA;
+void init_mass_rand (double alpha[], int const n, double const mass[], int const nm) {
+    int ii;
+    for (ii = 0; ii<n; ii++) {
+        alpha[ii] = mass[concent(nm)]/mass[0];
     }
 }
 
-void massic (void){
-    int i;
-    for (i = 0; i<N; i+=4){
-        alphaic[i] = 1.;
-	alphaic[i+1] = MB/MA;
-	alphaic[i+2] = MC/MA;
-	alphaic[i+1] = MD/MA;
-    }
-}
-
-int main(void) {
-    int i,j,k;
-    double rard, raic, rdrd, rdic, dlambda=(double)(LMAX-LMIN)/NL;
-    FILE *out;
-    time_t t;
-    printf("%d  \r", 1);
-    srand ((unsigned)time(&t));
-    out = fopen(FILENAME, "w");
-    for(j=0; j<NL; j++) {
-        idosrd[j] = 0.;
-        idosic[j] = 0.;
-    }
-    massic();
-    for(i=0; i<NP; i++) { 
-    	massrand();       
-        for(j=0; j<NL; j++) {
-            rard = 0.;
-            raic = 0.;
-            for(k=0; k<N; k++) {
-                rdrd = 2. - alphard[k]*(LMIN+dlambda*(double)j)-rard;
-                if (fabs(rdrd)<1e-50) {
-                    idosrd[j] += 1;
-                    k++;
-                    rard = 0.;
-                } else {
-                    if(rdrd<0.) idosrd[j] += 1.;
-                    rard = 1./rdrd;
-                }
-            }
-            for(k=0; k<N; k++) {
-                rdic = 2. - alphaic[k]*(LMIN+dlambda*(double)j)-raic;
-                if (fabs(rdic)<1e-50) {
-                    idosic[j] += 1;
-                    k++;
-                    raic = 0.;
-                } else {
-                    if(rdic<0.) idosic[j] += 1.;
-                    raic = 1./rdic;
-                }
-            }
+void init_mass_per (double alpha[], int const n, double const mass[], int const nm) {
+    int ii;
+    int jj;
+    for (ii = 0; ii<n; ii+=nm) {
+        for (jj = 0; jj<nm; jj++) {
+            alpha[ii+jj] = mass[jj]/mass[0];
         }
     }
-    for(j=0; j<NL; j++) {
-        fprintf(out, "%8.61f    ", LMIN+dlambda*(double)j);
-        fprintf(out, "%8.61f    ", idosic[j]/(double)N/(double)NP);
-        fprintf(out, "%8.61f\n", idosrd[j]/(double)N/(double)NP);
+}
+
+int ratio_n(double const alpha[], double const lambda, int const n) {
+    double ra = 0.;
+    double rd;
+    int k, count = 0;
+    for(k=0; k<n; k++) {
+        rd = 2. - alpha[k]*lambda - ra;
+        if (fabs(rd)<1e-50) {
+            count += 1;
+            k++;
+            ra = 0.;
+        } else {
+            if(rd<0.) count += 1;
+            ra = 1./rd;
+        }
+    }
+    return count;
+}
+
+int main() {
+    double  mass[NM]     = {1., 2., 3., 4.};    // Mass of A atoms
+    double  lmin         = 0.;          // Minimum frequency 
+    double  lmax         = 5.;          // Maximun frequency 
+    char    filename[]   = "DatosNL.txt";
+    int     rd           = 1;           // Random or Periodic chain
+    double  alpha[N];                   // Reduced masses
+    double  idos[NL];                   // Accumulative density modes
+
+    int ii, jj;
+    double lambda, dlambda=(double)(lmax-lmin)/NL;
+    FILE *out;
+    out = fopen(filename, "w");
+    for(jj=0; jj<NL; jj++) {
+        idos[jj] = 0.;
+    }
+    if (rd==0) {
+    	    init_mass_per(alpha, N, mass, NM);
+        }
+    for(ii=0; ii<NP; ii++) { 
+        if (rd==1) {
+    	    init_mass_rand(alpha, N, mass, NM);
+        }
+        for(jj=0; jj<NL; jj++) {
+            lambda = lmin+dlambda*(double)jj;
+            idos[jj] += ratio_n(alpha, lambda, N);
+        }
+    }
+    for(jj=0; jj<NL; jj++) {
+        fprintf(out, "%8.61f    ", lmin+dlambda*(double)jj);
+        fprintf(out, "%8.61f\n", idos[jj]/(double)N/(double)NP);
     }
     fclose(out);
 
